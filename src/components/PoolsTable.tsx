@@ -87,25 +87,27 @@ export function PoolsTable({ state, chain }: { state: PoolsState; chain: ChainCo
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-ink-700 bg-ink-900/60">
-              <table className="w-full min-w-[640px] border-collapse text-left">
+              {/* Same reasoning as the bit table: natural min-content width, no magic
+                  number, with nowrap headers so multi-word labels stay on one line. */}
+              <table className="w-full border-collapse text-left">
                 <caption className="sr-only">
                   Pools initialized with this hook, newest first
                 </caption>
                 <thead>
                   <tr className="border-b border-ink-700 text-[11px] tracking-wide text-ink-400 uppercase">
-                    <th scope="col" className="px-3 py-2 font-medium">
+                    <th scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       Token 0
                     </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
+                    <th scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       Token 1
                     </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
+                    <th scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       Fee
                     </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
+                    <th scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       Tick spacing
                     </th>
-                    <th scope="col" className="px-3 py-2 font-medium">
+                    <th scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       Block
                     </th>
                   </tr>

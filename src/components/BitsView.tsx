@@ -13,7 +13,8 @@ export function BitsView({ decoded }: { decoded: DecodedHook }) {
   const prefix = decoded.address.slice(0, -4);
 
   return (
-    <section aria-labelledby="bits-heading" className="space-y-3">
+    // min-w-0 lets this shrink when it is a grid item; see HookResults.
+    <section aria-labelledby="bits-heading" className="min-w-0 space-y-3">
       <h2 id="bits-heading" className="text-lg font-semibold">
         Raw masked bits
       </h2>
@@ -50,24 +51,31 @@ export function BitsView({ decoded }: { decoded: DecodedHook }) {
           </div>
         </dl>
 
-        {/* Horizontal scroll on narrow screens rather than letting the page scroll. */}
+        {/*
+          No min-width. A table cannot shrink below its own min-content width, and the
+          longest cell (`afterRemoveLiquidityReturnDelta`) is one unbreakable token, so
+          the natural floor is already correct and adapts if the labels change. A hard
+          min-width was previously wider than the content and forced a scrollbar that
+          served no purpose. `whitespace-nowrap` on the headers keeps multi-word labels
+          on one line so that floor stays honest.
+        */}
         <div className="-mx-4 overflow-x-auto px-4">
-          <table className="w-full min-w-[520px] border-collapse">
+          <table className="w-full border-collapse">
             <caption className="sr-only">
               Each of the 14 permission bits, its index, value, and meaning
             </caption>
             <thead>
               <tr className="text-left text-[11px] tracking-wide text-ink-400 uppercase">
-                <th scope="col" className="pb-1 font-medium">
+                <th scope="col" className="pb-1 font-medium whitespace-nowrap">
                   Bit
                 </th>
-                <th scope="col" className="pb-1 font-medium">
+                <th scope="col" className="pb-1 font-medium whitespace-nowrap">
                   Value
                 </th>
-                <th scope="col" className="pb-1 font-medium">
+                <th scope="col" className="pb-1 font-medium whitespace-nowrap">
                   Mask
                 </th>
-                <th scope="col" className="pb-1 font-medium">
+                <th scope="col" className="pb-1 font-medium whitespace-nowrap">
                   Permission
                 </th>
               </tr>

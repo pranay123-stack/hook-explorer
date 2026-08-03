@@ -87,10 +87,16 @@ export function HookResults({ decoded, chain }: { decoded: DecodedHook; chain: C
 
       <PermissionGrid decoded={decoded} />
 
+      {/*
+        min-w-0 on both grid children is load-bearing. Grid items default to
+        `min-width: auto`, so they refuse to shrink below their min-content width --
+        the bit table would push the track wider than the viewport and defeat its own
+        overflow-x-auto, spilling the whole page sideways on mobile.
+      */}
       <div className="grid gap-8 lg:grid-cols-2">
         <BitsView decoded={decoded} />
 
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8">
           {inspect.status === "loading" ? (
             <div
               role="status"
