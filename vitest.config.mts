@@ -10,6 +10,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Everything here is pure logic or a mocked transport, so nothing should take
+    // seconds. A tight ceiling turns an accidental real network call into a fast
+    // failure rather than a hung suite.
+    testTimeout: 10_000,
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
