@@ -171,6 +171,148 @@ test.describe("the bit table sizes to its content", () => {
   });
 });
 
+test.describe("the pool scan can never block the analysis", () => {
+  // The pool scan is the one part of the page that is slow, range-limited, and served
+  // by an RPC that rate-limits. It must degrade on its own without taking the decoded
+  // permissions or the risk report with it.
+
+  test("a 429 on /api/pools still leaves permissions, risk and on-chain state", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.route("**/api/pools**", (route) =>
+      route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, code: "rpc_error", error: "Too many requests." }),
+      }),
+    );
+
+    await page.goto(RESULT_URL);
+
+    // Everything that does not depend on the pool scan must still be here.
+    await expect(page.getByRole("heading", { name: "Hook permissions" })).toBeVisible();
+    await expect(page.getByText("4 of 14 active")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Raw masked bits" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "On-chain state" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Risk heuristics" })).toBeVisible();
+    await expect(page.getByText("Hook can alter swap amounts")).toBeVisible();
+
+    // And the failure is reported in place, with a route to fixing it.
+    await expect(page.getByText("Too many requests.")).toBeVisible();
+    await expect(page.getByText("RPC_URL_BASE")).toBeVisible();
+
+    await page.screenshot({ path: "screenshots/state-pools-rate-limited.png", fullPage: true });
+  });
+
+  test("a hung pool scan does not delay the rest of the page", async ({ page }) => {
+    // Never resolves. The analysis must render anyway.
+    await page.route("**/api/pools**", () => {});
+
+    await page.goto(RESULT_URL);
+
+    await expect(page.getByRole("heading", { name: "Hook permissions" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "On-chain state" })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByRole("heading", { name: "Risk heuristics" })).toBeVisible();
+    // The pool section is still spinning, and says why it is slow.
+    await expect(page.getByText("Scanning PoolManager Initialize events…")).toBeVisible();
+  });
+
+  test("an empty pool result is never presented as 'this hook has no pools'", async ({ page }) => {
+    await page.route("**/api/pools**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          address: HOOK,
+          chain: "base",
+          poolManager: "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+          pools: [],
+          scannedFrom: "49372538",
+          scannedTo: "49480537",
+          chunksScanned: 12,
+          chunksFailed: 0,
+          truncated: true,
+          hitResultLimit: false,
+        }),
+      }),
+    );
+
+    await page.goto(RESULT_URL);
+
+    await expect(
+      page.getByText("No pools using this hook were found in the scanned range."),
+    ).toBeVisible();
+    await expect(page.getByText("Older pools may exist outside this window")).toBeVisible();
+  });
+
+  test("an /api/inspect failure still leaves the decoded permissions", async ({ page }) => {
+    // The mirror case: permissions come from the address alone and need no network.
+    await page.route("**/api/inspect**", (route) =>
+      route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, code: "rpc_error", error: "RPC unreachable." }),
+      }),
+    );
+
+    await page.goto(RESULT_URL);
+
+    await expect(page.getByRole("heading", { name: "Hook permissions" })).toBeVisible();
+    await expect(page.getByText("4 of 14 active")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Raw masked bits" })).toBeVisible();
+    await expect(page.getByText("RPC unreachable.")).toBeVisible();
+    await expect(
+      page.getByText("decoded from the address itself, so they remain accurate"),
+    ).toBeVisible();
+  });
+});
+
+test.describe("the demo flow", () => {
+  test("paste address, decode, and land on a shareable URL", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+
+    // 1. Paste an address and pick a chain.
+    await page.getByLabel("Hook contract address").fill(HOOK);
+    await page.getByLabel("Chain").selectOption("base");
+    await page.getByRole("button", { name: "Decode" }).click();
+
+    // 2. The URL is the state, so the result is linkable.
+    await expect(page).toHaveURL(new RegExp(`address=${HOOK}&chain=base`));
+
+    // 3. Permissions decode immediately.
+    await expect(page.getByRole("heading", { name: "Hook permissions" })).toBeVisible();
+    await expect(page.getByText("4 of 14 active")).toBeVisible();
+
+    // 4. Risk flags arrive.
+    await expect(page.getByText("Hook can alter swap amounts")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("These are heuristics, not an audit.")).toBeVisible();
+
+    // 5. The title names the hook, so a shared link unfurls usefully.
+    await expect(page).toHaveTitle(/0x335c…c0cC on Base/);
+  });
+
+  test("an example button navigates to a decoded result", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /Swap-delta hook/ }).click();
+
+    await expect(page).toHaveURL(new RegExp(`address=${HOOK}`));
+    await expect(page.getByRole("heading", { name: "Hook permissions" })).toBeVisible();
+  });
+
+  test("New search returns to the landing page", async ({ page }) => {
+    await page.goto(RESULT_URL);
+    await page.getByRole("link", { name: /New search/ }).click();
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByText("Or try one of these live hooks:")).toBeVisible();
+  });
+});
+
 test.describe("page states", () => {
   test("empty state lists the example hooks", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });

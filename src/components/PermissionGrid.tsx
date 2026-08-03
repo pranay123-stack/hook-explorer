@@ -25,7 +25,9 @@ export function PermissionGrid({ decoded }: { decoded: DecodedHook }) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {/* items-start: without it every card stretches to the tallest in its row, which
+          left large empty voids under the short groups (Initialize, Donate). */}
+      <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {decoded.groups.map((group) => (
           <div key={group.group} className="rounded-xl border border-ink-700 bg-ink-900/60 p-4">
             <div className="mb-1 flex items-center justify-between gap-2">

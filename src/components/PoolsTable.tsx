@@ -2,7 +2,7 @@
 
 import type { PoolsSuccess } from "@/lib/api-types";
 import { formatFee } from "@/lib/pools";
-import { shortenAddress } from "@/lib/address";
+import { isZeroAddress, shortenAddress } from "@/lib/address";
 import type { ChainConfig } from "@/lib/chains";
 
 export type PoolsState =
@@ -12,12 +12,22 @@ export type PoolsState =
   | { status: "ready"; data: PoolsSuccess };
 
 function TokenLink({ chain, address }: { chain: ChainConfig; address: string }) {
+  // In v4, currency address(0) is the chain's native asset, not a token contract.
+  // Rendering it as `0x000000…000000` is accurate but tells the reader nothing.
+  if (isZeroAddress(address)) {
+    return (
+      <span className="text-xs whitespace-nowrap text-ink-100">
+        ETH <span className="text-ink-400">(native)</span>
+      </span>
+    );
+  }
+
   return (
     <a
       href={`${chain.explorerUrl}/address/${address}`}
       target="_blank"
       rel="noreferrer noopener"
-      className="font-mono text-xs text-ink-100 underline decoration-ink-600 underline-offset-2 hover:text-hook-soft"
+      className="font-mono text-xs whitespace-nowrap text-ink-100 underline decoration-ink-600 underline-offset-2 hover:text-hook-soft"
     >
       {shortenAddress(address, 8, 6)}
     </a>
@@ -121,7 +131,7 @@ export function PoolsTable({ state, chain }: { state: PoolsState; chain: ChainCo
                       <td className="px-3 py-2">
                         <TokenLink chain={chain} address={pool.currency1} />
                       </td>
-                      <td className="tnum px-3 py-2 text-sm">
+                      <td className="tnum px-3 py-2 text-sm whitespace-nowrap">
                         {pool.dynamicFee ? (
                           <span className="rounded bg-violet-500/15 px-1.5 py-0.5 text-xs text-violet-300">
                             dynamic
@@ -130,8 +140,10 @@ export function PoolsTable({ state, chain }: { state: PoolsState; chain: ChainCo
                           formatFee(pool.fee)
                         )}
                       </td>
-                      <td className="tnum px-3 py-2 text-sm text-ink-300">{pool.tickSpacing}</td>
-                      <td className="tnum px-3 py-2 font-mono text-xs text-ink-400">
+                      <td className="tnum px-3 py-2 text-sm whitespace-nowrap text-ink-300">
+                        {pool.tickSpacing}
+                      </td>
+                      <td className="tnum px-3 py-2 font-mono text-xs whitespace-nowrap text-ink-400">
                         {pool.blockNumber}
                       </td>
                     </tr>
