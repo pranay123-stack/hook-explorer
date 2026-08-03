@@ -221,7 +221,8 @@ export const PERMISSIONS: readonly PermissionMeta[] = [
     solidityName: "AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG",
     label: "afterAddLiquidityReturnDelta",
     group: "returnDelta",
-    description: "Lets afterAddLiquidity adjust the token amounts charged to the liquidity provider.",
+    description:
+      "Lets afterAddLiquidity adjust the token amounts charged to the liquidity provider.",
     requires: "afterAddLiquidity",
   },
   {

@@ -1,5 +1,4 @@
 import { createPublicClient, custom, encodeAbiParameters, toEventSelector, type Hex } from "viem";
-import { base } from "viem/chains";
 import type { PublicClient } from "viem";
 import { INITIALIZE_EVENT } from "../pools";
 
@@ -32,37 +31,40 @@ export interface MockRpc {
 export function createMockClient(handlers: MockRpcHandlers): MockRpc {
   const calls: Array<{ method: string; params: unknown[] }> = [];
 
+  // No `chain` is configured on purpose. A chain with custom formatters (Base is an
+  // OP-stack chain) specialises the client type so it no longer matches the plain
+  // `PublicClient` the production code accepts. None of the methods under test need
+  // chain-specific formatting, so the generic client is both simpler and more faithful.
   const client = createPublicClient({
-    chain: base,
     transport: custom(
       {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async request({ method, params }: { method: string; params: any }) {
-        calls.push({ method, params: (params ?? []) as unknown[] });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async request({ method, params }: { method: string; params: any }) {
+          calls.push({ method, params: (params ?? []) as unknown[] });
 
-        switch (method) {
-          case "eth_chainId":
-            return handlers.eth_chainId?.() ?? "0x2105"; // 8453
-          case "eth_getCode": {
-            if (!handlers.eth_getCode) throw new Error("eth_getCode not scripted");
-            return handlers.eth_getCode(params[0]);
+          switch (method) {
+            case "eth_chainId":
+              return handlers.eth_chainId?.() ?? "0x2105"; // 8453
+            case "eth_getCode": {
+              if (!handlers.eth_getCode) throw new Error("eth_getCode not scripted");
+              return handlers.eth_getCode(params[0]);
+            }
+            case "eth_getStorageAt": {
+              if (!handlers.eth_getStorageAt) throw new Error("eth_getStorageAt not scripted");
+              return handlers.eth_getStorageAt(params[0], params[1]);
+            }
+            case "eth_blockNumber": {
+              if (!handlers.eth_blockNumber) throw new Error("eth_blockNumber not scripted");
+              return handlers.eth_blockNumber();
+            }
+            case "eth_getLogs": {
+              if (!handlers.eth_getLogs) throw new Error("eth_getLogs not scripted");
+              return handlers.eth_getLogs(params[0] ?? {});
+            }
+            default:
+              throw new Error(`Unexpected RPC method: ${method}`);
           }
-          case "eth_getStorageAt": {
-            if (!handlers.eth_getStorageAt) throw new Error("eth_getStorageAt not scripted");
-            return handlers.eth_getStorageAt(params[0], params[1]);
-          }
-          case "eth_blockNumber": {
-            if (!handlers.eth_blockNumber) throw new Error("eth_blockNumber not scripted");
-            return handlers.eth_blockNumber();
-          }
-          case "eth_getLogs": {
-            if (!handlers.eth_getLogs) throw new Error("eth_getLogs not scripted");
-            return handlers.eth_getLogs(params[0] ?? {});
-          }
-          default:
-            throw new Error(`Unexpected RPC method: ${method}`);
-        }
-      },
+        },
       },
       // viem retries failed requests with backoff by default. Tests script exact
       // failures and count them, so retries must be off for the counts to mean

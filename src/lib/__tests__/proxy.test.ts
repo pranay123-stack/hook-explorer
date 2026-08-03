@@ -176,10 +176,7 @@ describe("analyzeProxy", () => {
 
   it("prefers the EIP-1967 implementation slot over a minimal-proxy target", () => {
     const other = "0x00000000000000000000000000000000000000cc";
-    const r = analyzeProxy(
-      { eip1967Implementation: slotWord(IMPL) },
-      minimalProxyBytecode(other),
-    );
+    const r = analyzeProxy({ eip1967Implementation: slotWord(IMPL) }, minimalProxyBytecode(other));
     expect(r.implementation).toBe(IMPL);
     expect(r.minimalProxyTarget).toBe(other);
   });

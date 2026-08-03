@@ -37,17 +37,25 @@ function log(overrides: Record<string, unknown> = {}): any {
 }
 
 describe("INITIALIZE_EVENT", () => {
+  // The parsed ABI is a discriminated union of literal types, so widen it before
+  // inspecting `indexed`, which only some members declare.
+  const inputs = INITIALIZE_EVENT.inputs as readonly {
+    name?: string;
+    type: string;
+    indexed?: boolean;
+  }[];
+
   it("indexes only id, currency0 and currency1", () => {
     // This is why hook filtering has to happen client-side: `hooks` is not a topic.
-    const indexed = INITIALIZE_EVENT.inputs.filter((i) => i.indexed).map((i) => i.name);
+    const indexed = inputs.filter((i) => i.indexed).map((i) => i.name);
     expect(indexed).toEqual(["id", "currency0", "currency1"]);
 
-    const nonIndexed = INITIALIZE_EVENT.inputs.filter((i) => !i.indexed).map((i) => i.name);
+    const nonIndexed = inputs.filter((i) => !i.indexed).map((i) => i.name);
     expect(nonIndexed).toEqual(["fee", "tickSpacing", "hooks", "sqrtPriceX96", "tick"]);
   });
 
   it("declares the parameter types from IPoolManager.sol", () => {
-    expect(INITIALIZE_EVENT.inputs.map((i) => i.type)).toEqual([
+    expect(inputs.map((i) => i.type)).toEqual([
       "bytes32", // PoolId
       "address", // Currency
       "address", // Currency

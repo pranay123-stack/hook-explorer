@@ -36,9 +36,7 @@ describe("inspectContract (integration, mocked RPC)", () => {
     const { client } = createMockClient({
       eth_getCode: () => REAL_BYTECODE,
       eth_getStorageAt: (_address, slot) =>
-        slot.toLowerCase() === PROXY_SLOTS.eip1967Implementation
-          ? storageWord(IMPL)
-          : EMPTY_SLOT,
+        slot.toLowerCase() === PROXY_SLOTS.eip1967Implementation ? storageWord(IMPL) : EMPTY_SLOT,
     });
 
     const result = await inspectContract(client, HOOK);

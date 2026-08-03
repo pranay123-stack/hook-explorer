@@ -146,7 +146,9 @@ describe("swap_delta_control", () => {
       flag("afterSwap") |
       flag("beforeSwapReturnsDelta") |
       flag("afterSwapReturnsDelta");
-    expect(analyzeRisk(input(bits)).findings.filter((f) => f.code === "swap_delta_control")).toHaveLength(1);
+    expect(
+      analyzeRisk(input(bits)).findings.filter((f) => f.code === "swap_delta_control"),
+    ).toHaveLength(1);
   });
 
   it("does not fire for swap permissions without a delta flag", () => {
@@ -185,7 +187,9 @@ describe("liquidity_delta_control", () => {
     const finding = analyzeRisk(input(bits)).findings.find(
       (f) => f.code === "liquidity_delta_control",
     )!;
-    expect(finding.detail).toContain("afterAddLiquidityReturnDelta and afterRemoveLiquidityReturnDelta");
+    expect(finding.detail).toContain(
+      "afterAddLiquidityReturnDelta and afterRemoveLiquidityReturnDelta",
+    );
   });
 
   it("does not fire for plain liquidity permissions", () => {
@@ -196,7 +200,10 @@ describe("liquidity_delta_control", () => {
 
 describe("full_lifecycle_control", () => {
   const bits =
-    flag("beforeSwap") | flag("afterSwap") | flag("beforeAddLiquidity") | flag("beforeRemoveLiquidity");
+    flag("beforeSwap") |
+    flag("afterSwap") |
+    flag("beforeAddLiquidity") |
+    flag("beforeRemoveLiquidity");
 
   it("fires as low when swap and both liquidity gates are held", () => {
     const finding = analyzeRisk(input(bits)).findings.find(
@@ -274,8 +281,7 @@ describe("proxy heuristics", () => {
   });
 
   it("flags an EIP-1167 minimal proxy as high and names the target", () => {
-    const bytecode =
-      `0x363d3d373d3d3d363d73${IMPL.slice(2)}5af43d82803e903d91602b57fd5bf3` as Hex;
+    const bytecode = `0x363d3d373d3d3d363d73${IMPL.slice(2)}5af43d82803e903d91602b57fd5bf3` as Hex;
     const report = analyzeRisk(
       input(flag("beforeSwap"), { proxy: analyzeProxy({}, bytecode), bytecodeSize: 45 }),
     );
@@ -446,9 +452,6 @@ describe("real hook: 0x335c...c0cC (Base) with swap deltas", () => {
       proxy: analyzeProxy({}, "0x6080604052"),
       verification: "unverified",
     });
-    expect(report.findings.map((f) => f.code)).toEqual([
-      "swap_delta_control",
-      "unverified_source",
-    ]);
+    expect(report.findings.map((f) => f.code)).toEqual(["swap_delta_control", "unverified_source"]);
   });
 });

@@ -129,9 +129,7 @@ describe("decodePermissions - exhaustive over the full 14-bit space", () => {
       for (const p of PERMISSIONS) {
         const expected = (bits & Number(p.flag)) !== 0;
         if (decoded[p.key] !== expected) {
-          throw new Error(
-            `bits=${bits} key=${p.key}: expected ${expected}, got ${decoded[p.key]}`,
-          );
+          throw new Error(`bits=${bits} key=${p.key}: expected ${expected}, got ${decoded[p.key]}`);
         }
       }
     }

@@ -3,15 +3,10 @@ import { checksumAddress, type Address } from "viem";
 export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
 
 export type AddressErrorCode =
-  | "empty"
-  | "bad_length"
-  | "bad_characters"
-  | "bad_checksum"
-  | "zero_address";
+  "empty" | "bad_length" | "bad_characters" | "bad_checksum" | "zero_address";
 
 export type AddressParseResult =
-  | { ok: true; address: Address }
-  | { ok: false; code: AddressErrorCode; message: string };
+  { ok: true; address: Address } | { ok: false; code: AddressErrorCode; message: string };
 
 const HEX_BODY = /^[0-9a-fA-F]*$/;
 

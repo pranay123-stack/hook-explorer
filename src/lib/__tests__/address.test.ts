@@ -129,7 +129,13 @@ describe("parseAddress - rejection", () => {
   });
 
   it("returns a human-readable message for every failure mode", () => {
-    for (const bad of ["", "0x", "0xzz", `0x${"a".repeat(39)}`, `0x${"a" + CHECKSUMMED.slice(3)}`]) {
+    for (const bad of [
+      "",
+      "0x",
+      "0xzz",
+      `0x${"a".repeat(39)}`,
+      `0x${"a" + CHECKSUMMED.slice(3)}`,
+    ]) {
       const r = parseAddress(bad);
       expect(r.ok).toBe(false);
       if (!r.ok) {

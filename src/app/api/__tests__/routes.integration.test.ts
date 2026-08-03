@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Hex } from "viem";
 import { PROXY_SLOTS } from "@/lib/proxy";
-import { createMockClient, EMPTY_SLOT, encodeInitializeLog, storageWord } from "@/lib/__tests__/mock-rpc";
+import {
+  createMockClient,
+  EMPTY_SLOT,
+  encodeInitializeLog,
+  storageWord,
+} from "@/lib/__tests__/mock-rpc";
 import type { InspectResponse, PoolsResponse } from "@/lib/api-types";
 
 // The routes construct their own viem client, so the factory is mocked to hand back a
@@ -290,7 +295,8 @@ describe("GET /api/inspect - explorer verification", () => {
 
   it("queries the explorer with the selected chain id", async () => {
     process.env.ETHERSCAN_API_KEY = "TESTKEY";
-    const fetchSpy = vi.fn(async () => ({
+    // Declare the parameters so `mock.calls` is typed as a tuple with the URL in it.
+    const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({ status: "1", result: [{ SourceCode: "x" }] }),
@@ -299,7 +305,7 @@ describe("GET /api/inspect - explorer verification", () => {
 
     await inspectGET(inspectUrl({ address: SIMPLE_HOOK, chain: "arbitrum" }));
 
-    const url = new URL(fetchSpy.mock.calls[0]![0] as unknown as string);
+    const url = new URL(fetchSpy.mock.calls[0]![0]);
     expect(url.searchParams.get("chainid")).toBe("42161");
     expect(url.searchParams.get("address")).toBe(SIMPLE_HOOK);
   });
