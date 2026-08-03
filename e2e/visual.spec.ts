@@ -249,6 +249,53 @@ test.describe("the pool scan can never block the analysis", () => {
     await expect(page.getByText("Older pools may exist outside this window")).toBeVisible();
   });
 
+  test("a scan where every range was rejected is not reported as an empty result", async ({
+    page,
+  }) => {
+    // The shape Ethereum's public endpoint actually returns: the route succeeds, but
+    // every range request inside it was refused, so no blocks were read. Reporting
+    // that as "no pools found" would claim a search happened.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.route("**/api/pools**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          address: HOOK,
+          chain: "base",
+          poolManager: "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+          pools: [],
+          scannedFrom: "49372538",
+          scannedTo: "49480537",
+          chunksScanned: 0,
+          chunksFailed: 12,
+          truncated: true,
+          hitResultLimit: false,
+        }),
+      }),
+    );
+
+    await page.goto(RESULT_URL);
+
+    const pools = page.locator("section", { has: page.getByText("Associated pools") }).first();
+    await expect(pools.getByText("no blocks were searched")).toBeVisible();
+    await expect(pools.getByText("This is not a result")).toBeVisible();
+    await expect(pools.getByText("12 range requests attempted, all rejected")).toBeVisible();
+
+    // None of the empty-result or scanned-range copy may appear.
+    await expect(pools.getByText("No pools using this hook were found")).toHaveCount(0);
+    await expect(pools.getByText("This scan covered blocks")).toHaveCount(0);
+    await expect(pools.getByText("Best-effort scan of")).toHaveCount(0);
+    await expect(pools.getByText("0 found")).toHaveCount(0);
+
+    // And the rest of the analysis is untouched.
+    await expect(page.getByRole("heading", { name: "Hook permissions" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Risk heuristics" })).toBeVisible();
+
+    await page.screenshot({ path: "screenshots/state-pools-not-searched.png", fullPage: true });
+  });
+
   test("an /api/inspect failure still leaves the decoded permissions", async ({ page }) => {
     // The mirror case: permissions come from the address alone and need no network.
     await page.route("**/api/inspect**", (route) =>

@@ -49,10 +49,15 @@ export function PoolsTable({ state, chain }: { state: PoolsState; chain: ChainCo
         <h2 id="pools-heading" className="text-lg font-semibold">
           Associated pools
         </h2>
-        {state.status === "ready" ? (
+        {/* Same rule as below: with no successful range, there is no count and no
+            covered range to report. "0 found · blocks X–Y" would assert both. */}
+        {state.status === "ready" && state.data.chunksScanned > 0 ? (
           <p className="tnum text-xs text-ink-400">
             {state.data.pools.length} found · blocks {state.data.scannedFrom}–{state.data.scannedTo}
           </p>
+        ) : null}
+        {state.status === "ready" && state.data.chunksScanned === 0 ? (
+          <p className="text-xs text-amber-300">not searched</p>
         ) : null}
       </div>
 
@@ -82,7 +87,26 @@ export function PoolsTable({ state, chain }: { state: PoolsState; chain: ChainCo
 
       {state.status === "ready" ? (
         <>
-          {state.data.pools.length === 0 ? (
+          {/*
+            When every range request was rejected, nothing was read -- so this is not an
+            empty result and must not be reported as one. Saying "no pools found in the
+            scanned range" would assert both that a range was scanned and that it held
+            nothing, and neither is true.
+          */}
+          {state.data.chunksScanned === 0 ? (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+              <p className="text-sm text-amber-200">
+                Pool discovery is unavailable on this endpoint — the RPC rejected every request, so
+                no blocks were searched.
+              </p>
+              <p className="mt-1 text-xs text-ink-400">
+                This is not a result: it is unknown whether this hook has pools on {chain.label}.
+                Public endpoints commonly refuse historical log queries. Set{" "}
+                <code className="font-mono text-ink-300">{chain.rpcEnvVar}</code> to a dedicated RPC
+                to enable this check. Everything else on this page is unaffected.
+              </p>
+            </div>
+          ) : state.data.pools.length === 0 ? (
             <div className="rounded-xl border border-ink-700 bg-ink-900/60 p-4">
               <p className="text-sm text-ink-300">
                 No pools using this hook were found in the scanned range.
@@ -153,16 +177,28 @@ export function PoolsTable({ state, chain }: { state: PoolsState; chain: ChainCo
             </div>
           )}
 
-          <p className="text-xs leading-relaxed text-ink-400">
-            Best-effort scan of {state.data.chunksScanned} block range
-            {state.data.chunksScanned === 1 ? "" : "s"}
-            {state.data.chunksFailed > 0
-              ? `, ${state.data.chunksFailed} of which the RPC rejected`
-              : ""}
-            {state.data.truncated
-              ? ". This is a partial view — the scan stops before the full chain history to stay within public RPC limits."
-              : "."}
-          </p>
+          {/* Only describe a scan that actually happened. With zero successful ranges
+              the panel above already explains the failure, and "scan of 0 block ranges,
+              12 of which the RPC rejected" is both false and unreadable. */}
+          {state.data.chunksScanned > 0 ? (
+            <p className="text-xs leading-relaxed text-ink-400">
+              Best-effort scan of {state.data.chunksScanned} block range
+              {state.data.chunksScanned === 1 ? "" : "s"}
+              {state.data.chunksFailed > 0
+                ? `, with ${state.data.chunksFailed} further range${
+                    state.data.chunksFailed === 1 ? "" : "s"
+                  } rejected by the RPC`
+                : ""}
+              {state.data.truncated
+                ? ". This is a partial view — the scan stops before the full chain history to stay within public RPC limits."
+                : "."}
+            </p>
+          ) : (
+            <p className="text-xs leading-relaxed text-ink-400">
+              {state.data.chunksFailed} range request
+              {state.data.chunksFailed === 1 ? "" : "s"} attempted, all rejected.
+            </p>
+          )}
         </>
       ) : null}
     </section>

@@ -324,7 +324,84 @@ describe("PoolsTable", () => {
       data: { ...(state as { data: PoolsSuccess }).data, chunksScanned: 10, chunksFailed: 2 },
     };
     const out = text(render(<PoolsTable state={withFailures} chain={chain} />));
-    expect(out).toContain("2 of which the RPC rejected");
+    expect(out).toContain("2 further ranges rejected by the RPC");
+  });
+
+  describe("when the RPC rejected every range request", () => {
+    // Observed on Ethereum's public endpoint, which refuses any historical log query:
+    // 0 ranges succeeded, 12 failed. Nothing was read, so this is not an empty result.
+    const allFailed: PoolsState = {
+      status: "ready",
+      data: {
+        ...(poolsState() as { data: PoolsSuccess }).data,
+        pools: [],
+        chunksScanned: 0,
+        chunksFailed: 12,
+      },
+    };
+
+    it("never claims a range was scanned", () => {
+      const out = text(render(<PoolsTable state={allFailed} chain={chain} />));
+      expect(out).not.toContain("This scan covered blocks");
+      expect(out).not.toContain("Best-effort scan of");
+    });
+
+    it("does not report a found-count or a block range in the heading", () => {
+      // "0 found · blocks 25566181–25674180" asserts both a count and a coverage
+      // window, and neither exists when nothing was read.
+      const out = text(render(<PoolsTable state={allFailed} chain={chain} />));
+      expect(out).not.toContain("0 found");
+      expect(out).not.toContain("49372538");
+      expect(out).toContain("not searched");
+    });
+
+    it("never presents the failure as 'no pools found'", () => {
+      // The whole promise of this panel is that an empty result means "none in the
+      // window", never "this hook has no pools". With nothing read, neither holds.
+      const out = text(render(<PoolsTable state={allFailed} chain={chain} />));
+      expect(out).not.toContain("No pools using this hook were found");
+      expect(out).not.toContain("Older pools may exist outside this window");
+    });
+
+    it("says the check did not run and that the answer is unknown", () => {
+      const out = text(render(<PoolsTable state={allFailed} chain={chain} />));
+      expect(out).toContain("no blocks were searched");
+      expect(out).toContain("This is not a result");
+      expect(out).toContain("unknown whether this hook has pools");
+    });
+
+    it("names the env var that would fix it", () => {
+      const out = text(render(<PoolsTable state={allFailed} chain={chain} />));
+      expect(out).toContain(chain.rpcEnvVar);
+    });
+
+    it("reports the attempt count without the broken '0 ranges' phrasing", () => {
+      const out = text(render(<PoolsTable state={allFailed} chain={chain} />));
+      expect(out).toContain("12 range requests attempted, all rejected");
+      expect(out).not.toContain("0 block range");
+    });
+
+    it("reassures that the rest of the page is unaffected", () => {
+      const out = text(render(<PoolsTable state={allFailed} chain={chain} />));
+      expect(out).toContain("Everything else on this page is unaffected");
+    });
+
+    it("still renders normally when at least one range succeeded", () => {
+      // One success is a real, if thin, result -- the empty-state copy applies again.
+      const onePartial: PoolsState = {
+        status: "ready",
+        data: {
+          ...(poolsState() as { data: PoolsSuccess }).data,
+          pools: [],
+          chunksScanned: 1,
+          chunksFailed: 11,
+        },
+      };
+      const out = text(render(<PoolsTable state={onePartial} chain={chain} />));
+      expect(out).toContain("No pools using this hook were found");
+      expect(out).toContain("Best-effort scan of 1 block range");
+      expect(out).toContain("11 further ranges rejected");
+    });
   });
 
   it("renders nothing but the heading when idle", () => {
