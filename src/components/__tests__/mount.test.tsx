@@ -173,6 +173,18 @@ describe("HookExplorer requests", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("offers a way back to the landing page from a result", () => {
+    searchParams = new URLSearchParams({
+      address: "0x335c39D5AB526092E9e8619987b4f6B5B77ac0cC",
+      chain: "base",
+    });
+    mount();
+
+    const home = [...container.querySelectorAll("a")].filter((a) => a.getAttribute("href") === "/");
+    expect(home.length).toBeGreaterThan(0);
+    expect(home.some((a) => a.textContent?.includes("New search"))).toBe(true);
+  });
+
   it("navigates to a checksummed URL when an example is clicked", () => {
     mount();
     const button = [...container.querySelectorAll("button")].find((b) =>

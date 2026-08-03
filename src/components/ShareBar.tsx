@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { shortenAddress } from "@/lib/address";
 import type { ChainConfig } from "@/lib/chains";
 
@@ -40,13 +41,21 @@ export function ShareBar({ address, chain }: { address: string; chain: ChainConf
           <span className="ml-2 text-ink-400">on {chain.label}</span>
         </p>
       </div>
-      <button
-        type="button"
-        onClick={copy}
-        className="shrink-0 rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-medium text-ink-300 transition-colors hover:border-hook-pink hover:text-hook-soft focus:ring-1 focus:ring-hook-soft focus:outline-none"
-      >
-        {copied ? "Copied ✓" : "Copy link"}
-      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        <Link
+          href="/"
+          className="rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-medium text-ink-300 transition-colors hover:border-hook-pink hover:text-hook-soft focus:ring-1 focus:ring-hook-soft focus:outline-none"
+        >
+          ← New search
+        </Link>
+        <button
+          type="button"
+          onClick={copy}
+          className="rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-medium text-ink-300 transition-colors hover:border-hook-pink hover:text-hook-soft focus:ring-1 focus:ring-hook-soft focus:outline-none"
+        >
+          {copied ? "Copied ✓" : "Copy link"}
+        </button>
+      </div>
     </div>
   );
 }
