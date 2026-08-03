@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     // Everything here is pure logic or a mocked transport, so nothing should take
     // seconds. A tight ceiling turns an accidental real network call into a fast
     // failure rather than a hung suite.
