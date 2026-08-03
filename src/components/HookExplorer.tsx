@@ -78,8 +78,14 @@ export function HookExplorer() {
 
   return (
     <div className="space-y-8">
+      {/*
+        Both keys exist to remount on target change rather than reset state in an
+        effect. They must be namespaced: these are siblings, and once the URL carries
+        a checksummed address both would otherwise resolve to the same string, which
+        React rejects as a duplicate sibling key.
+      */}
       <AddressForm
-        key={`${urlAddress}-${urlChain}`}
+        key={`form-${urlAddress}-${urlChain}`}
         address={urlAddress}
         chain={urlChain}
         error={error}
@@ -87,7 +93,11 @@ export function HookExplorer() {
       />
 
       {decoded ? (
-        <HookResults key={`${decoded.address}-${urlChain}`} decoded={decoded} chain={chainConfig} />
+        <HookResults
+          key={`results-${decoded.address}-${urlChain}`}
+          decoded={decoded}
+          chain={chainConfig}
+        />
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-ink-400">Or try one of these live hooks:</p>
