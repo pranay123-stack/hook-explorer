@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BASE_DESCRIPTION, BASE_TITLE, buildMetadata } from "../metadata";
+import { BASE_DESCRIPTION, BASE_TITLE, buildMetadata, resolveSiteUrl } from "../metadata";
 
 const SWAP_DELTA = "0x335c39D5AB526092E9e8619987b4f6B5B77ac0cC"; // 0x00cc
 const SIMPLE = "0x44A0d07e76d5b3fA1bc2cfE3ac37073c9cf94040"; // 0x0040
@@ -92,5 +92,52 @@ describe("buildMetadata - decoded hook", () => {
     const m = buildMetadata({ address: `0x${"a".repeat(36)}3fff`, chain: "base" });
     expect(String(m.description).length).toBeLessThan(500);
     expect(m.description).toContain("14 of 14");
+  });
+});
+
+describe("resolveSiteUrl", () => {
+  it("prefers an explicit override", () => {
+    expect(resolveSiteUrl({ NEXT_PUBLIC_SITE_URL: "https://hooks.example" })).toBe(
+      "https://hooks.example",
+    );
+  });
+
+  it("strips a trailing slash so URL joining stays predictable", () => {
+    expect(resolveSiteUrl({ NEXT_PUBLIC_SITE_URL: "https://hooks.example/" })).toBe(
+      "https://hooks.example",
+    );
+  });
+
+  it("prefers Vercel's stable production domain over the deployment URL", () => {
+    // A preview deployment must not bake its throwaway hostname into shared links.
+    const url = resolveSiteUrl({
+      VERCEL_PROJECT_PRODUCTION_URL: "hook-explorer.vercel.app",
+      VERCEL_URL: "hook-explorer-abc123.vercel.app",
+    });
+    expect(url).toBe("https://hook-explorer.vercel.app");
+  });
+
+  it("falls back to the deployment URL when no production domain is set", () => {
+    expect(resolveSiteUrl({ VERCEL_URL: "abc123.vercel.app" })).toBe("https://abc123.vercel.app");
+  });
+
+  it("falls back to localhost outside a deployment", () => {
+    expect(resolveSiteUrl({})).toBe("http://localhost:3000");
+  });
+
+  it("ignores blank values", () => {
+    expect(resolveSiteUrl({ NEXT_PUBLIC_SITE_URL: "   ", VERCEL_URL: "" })).toBe(
+      "http://localhost:3000",
+    );
+  });
+
+  it("always produces a parseable absolute URL", () => {
+    for (const env of [
+      {},
+      { VERCEL_URL: "x.vercel.app" },
+      { NEXT_PUBLIC_SITE_URL: "https://a.b" },
+    ]) {
+      expect(() => new URL(resolveSiteUrl(env))).not.toThrow();
+    }
   });
 });

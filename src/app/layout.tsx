@@ -1,20 +1,19 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { BASE_DESCRIPTION, BASE_TITLE, resolveSiteUrl } from "@/lib/metadata";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Hook Explorer — Uniswap v4",
-  description:
-    "Paste a Uniswap v4 hook address to decode its permissions, inspect its on-chain state, review risk heuristics, and find the pools that use it.",
-  openGraph: {
-    title: "Hook Explorer — Uniswap v4",
-    description:
-      "Decode a v4 hook's permissions straight from its address, plus risk heuristics and associated pools.",
-    type: "website",
-  },
+  // Without metadataBase the Open Graph image resolves to a relative URL, which
+  // Discord and Twitter cannot fetch -- the unfurl silently loses its image.
+  metadataBase: new URL(resolveSiteUrl()),
+  title: BASE_TITLE,
+  description: BASE_DESCRIPTION,
+  openGraph: { title: BASE_TITLE, description: BASE_DESCRIPTION, type: "website" },
+  twitter: { card: "summary_large_image", title: BASE_TITLE, description: BASE_DESCRIPTION },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

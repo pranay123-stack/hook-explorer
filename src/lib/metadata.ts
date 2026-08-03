@@ -10,6 +10,28 @@ export const BASE_DESCRIPTION =
 /** Untrusted query-string shape, as Next hands it to `generateMetadata`. */
 export type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
+/**
+ * Absolute origin for this deployment, used as `metadataBase`.
+ *
+ * Open Graph image URLs must be absolute or the unfurl loses its image, so this has to
+ * resolve to something real in production. Precedence: an explicit override, then
+ * Vercel's stable production domain, then the per-deployment URL, then localhost.
+ */
+export function resolveSiteUrl(env: Record<string, string | undefined> = process.env): string {
+  const explicit = env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+
+  // Set by Vercel: the stable production domain, preferred over the deployment URL so
+  // preview builds do not bake a throwaway hostname into shared links.
+  const prod = env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (prod) return `https://${prod}`;
+
+  const deployment = env.VERCEL_URL?.trim();
+  if (deployment) return `https://${deployment}`;
+
+  return "http://localhost:3000";
+}
+
 function first(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
   return value ?? "";
@@ -25,6 +47,21 @@ function first(value: string | string[] | undefined): string {
  *
  * Kept as a pure function separate from the route so it can be tested without Next.
  */
+export const OG_ALT = "Uniswap v4 hook permissions decoded from the contract address";
+
+/**
+ * URL of the generated Open Graph card.
+ *
+ * Relative on purpose: Next resolves it against `metadataBase`, so the origin is
+ * defined in exactly one place. The query string has to be carried explicitly here --
+ * Next's `opengraph-image` convention only receives route segments, never search
+ * params, so it could never see which hook to draw.
+ */
+export function ogImageUrl(address: string, chainSlug: string): string {
+  const query = new URLSearchParams({ address, chain: chainSlug });
+  return `/api/og?${query.toString()}`;
+}
+
 export function buildMetadata(params: SearchParamsRecord): Metadata {
   const parsed = parseAddress(first(params.address));
 
@@ -32,7 +69,18 @@ export function buildMetadata(params: SearchParamsRecord): Metadata {
     return {
       title: BASE_TITLE,
       description: BASE_DESCRIPTION,
-      openGraph: { title: BASE_TITLE, description: BASE_DESCRIPTION, type: "website" },
+      openGraph: {
+        title: BASE_TITLE,
+        description: BASE_DESCRIPTION,
+        type: "website",
+        images: [{ url: "/api/og", width: 1200, height: 630, alt: OG_ALT }],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: BASE_TITLE,
+        description: BASE_DESCRIPTION,
+        images: ["/api/og"],
+      },
     };
   }
 
@@ -48,9 +96,17 @@ export function buildMetadata(params: SearchParamsRecord): Metadata {
           .map((p) => p.label)
           .join(", ")}.`;
 
+  const image = ogImageUrl(parsed.address, chain.slug);
+
   return {
     title,
     description,
-    openGraph: { title, description, type: "website" },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: [{ url: image, width: 1200, height: 630, alt: OG_ALT }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
   };
 }
