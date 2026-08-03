@@ -14,7 +14,7 @@ jobs:
   verify:
     name: Lint, test, build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -38,10 +38,53 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # No secrets are needed: the suite is pure logic plus a mocked JSON-RPC
-      # transport, so it never touches the network.
+      # No secrets needed: the suite is pure logic plus a mocked JSON-RPC transport,
+      # so it never touches the network.
       - name: Test
         run: npm run test
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Playwright builds and serves the app itself; see webServer in
+      # playwright.config.ts. Network-dependent panels are allowed to fail softly,
+      # so this stays green without RPC credentials.
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: warn
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore

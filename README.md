@@ -8,36 +8,76 @@ contract's on-chain state, runs a set of risk heuristics, and finds the pools th
 
 ---
 
-## Why this matters for the v4 ecosystem
+## Why this matters
 
-Hooks are the reason v4 is interesting, and they are also its sharpest edge. A hook sits
-between a user and the PoolManager on every swap and every liquidity change. If it holds
-`beforeSwapReturnDelta`, it can change how many tokens a swapper actually receives. If it
-holds `beforeRemoveLiquidity`, it can decide whether an LP gets their funds back at all.
+### The problem
 
-The catch is that this power is not discoverable by reading the contract. It is a property
-of the _address_:
+A Uniswap v4 hook sits between a user and the PoolManager on every swap and every
+liquidity change. The specific callbacks it is allowed to intercept determine what it can
+do: a hook holding `beforeSwapReturnDelta` can change how many tokens a swapper receives;
+one holding `beforeRemoveLiquidity` can gate whether a liquidity provider can withdraw.
+
+Those permissions are not stored in the contract. They are encoded in the lowest 14 bits
+of the hook's own address, and the PoolManager reads them off the address on every call:
 
 ```solidity
 // v4-core/src/libraries/Hooks.sol
 uint160 internal constant BEFORE_SWAP_FLAG = 1 << 7;
-...
+
 function hasPermission(IHooks self, uint160 flag) internal pure returns (bool) {
     return uint160(address(self)) & flag != 0;
 }
 ```
 
-The PoolManager never asks a hook what it does. It masks the address and calls whatever
-the bits say. That is why hooks are deployed to mined CREATE2 addresses — the address
-_is_ the permission manifest.
+This is why hooks are deployed to mined CREATE2 addresses: the address _is_ the permission
+manifest. It also means the information is there but not legible. Verifying what a hook
+can do by hand requires taking the last four hex characters, masking against `0x3fff`,
+expanding to binary, and mapping 14 bit positions to callback names in the correct order —
+then separately checking that the address is even valid, since `Hooks.isValidHookAddress`
+rejects a returns-delta flag whose parent action flag is absent.
 
-The practical consequence: a v4 address is a dense, unreadable permission string that
-matters enormously and that nobody can parse by eye. `0x...c0cC` grants four powers
-including full control over swap amounts; `0x...4040` grants one. This tool makes that
-legible in one paste, which is what you want when a hook address shows up in a Discord
-thread and someone asks "is this safe to route through?"
+Block explorers show the bytecode and, if verified, the source. They do not decode the
+permission bits, because those are a v4-specific convention rather than anything in the
+ABI. At the time of writing there is no widely-used tool that takes a hook address and
+returns a readable permission set.
 
-## What it does
+### What this does
+
+Given an address and a chain, it decodes all 14 permissions and shows the masked bits
+alongside the address they came from; checks the address against `isValidHookAddress`;
+reads the deployed bytecode and the standard proxy storage slots; checks source
+verification via the block explorer; runs a set of labelled risk heuristics; and scans the
+PoolManager's `Initialize` events for pools using that hook. Results are addressable by
+URL, so a specific hook can be linked directly.
+
+The decoding step needs no network access — the address is sufficient — so it stays
+correct and instant even when an RPC or explorer is unavailable.
+
+### Honest limitations
+
+- **The risk flags are heuristics, not an audit.** They are pattern checks over address
+  bits, bytecode, and explorer metadata. Several fire on entirely legitimate hooks by
+  design: holding a returns-delta permission is how custom-curve hooks work, and sitting
+  behind a proxy is how most upgradeable protocols ship. A hook can pass every check here
+  and still be malicious. Findings that are mechanically verifiable (no bytecode, an
+  invalid flag combination) are marked separately from those that are judgement calls.
+- **Pool discovery is range-limited, and this is not a tuning problem.** The v4
+  `Initialize` event indexes only `id`, `currency0` and `currency1`; the `hooks` address
+  is in the data payload. It therefore cannot be filtered at the RPC layer, so finding
+  pools means fetching every `Initialize` log over a block range and filtering
+  client-side. The default scan covers roughly 108,000 blocks back from head. "No pools
+  found" means "none in the scanned window", and the UI always states the exact range
+  covered. Complete coverage would need an indexer, which is outside the scope of a
+  no-backend tool.
+- **Source verification requires an explorer API key.** Without one, that single check
+  reports "not checked" and everything else works unchanged.
+- **Four chains are supported** — Ethereum, Base, Unichain, Arbitrum One — because those
+  are the PoolManager deployments wired in. Adding another is a single entry in the chain
+  registry.
+- **It describes permissions, not intent.** Knowing a hook _can_ alter swap amounts does
+  not tell you whether it does so fairly. Reading the source remains necessary.
+
+## Feature detail
 
 - **Decodes all 14 permissions** from the address, grouped by lifecycle stage
   (initialize / liquidity / swap / donate / return-delta), with the raw masked bits shown
@@ -52,9 +92,7 @@ thread and someone asks "is this safe to route through?"
   audit.
 - **Finds associated pools** by scanning the PoolManager's `Initialize` events.
 - **Shareable URLs** — the address and chain live in the query string, so every result is
-  a link.
-
-Supported chains: **Ethereum**, **Base**, **Unichain**, **Arbitrum One**.
+  a link, and it unfurls into a generated card showing the permission grid.
 
 ## Correctness
 
@@ -74,7 +112,13 @@ independently. The test suite covers:
 - integration tests that drive real viem clients against a scripted JSON-RPC transport,
   so request encoding and ABI decoding are genuinely exercised without a network.
 
-**318 tests.**
+**385 unit and integration tests, plus 29 browser tests.**
+
+Layout and appearance are verified separately, because jsdom has no layout engine and
+cannot see overflow, wrapping, or anything visual. Playwright covers horizontal overflow
+at 390 / 768 / 1280 px, table sizing in both directions, the empty / invalid / loading
+states, the Open Graph card, and the guarantee that a failing pool scan never blocks the
+rest of the analysis. Screenshots are written to `screenshots/`.
 
 ### One thing worth knowing about pool discovery
 
@@ -111,18 +155,20 @@ RPC endpoints.
 
 ### Scripts
 
-| Command                 | What it does                          |
-| ----------------------- | ------------------------------------- |
-| `npm run dev`           | Development server                    |
-| `npm run build`         | Production build                      |
-| `npm run start`         | Serve the production build            |
-| `npm run test`          | Run the test suite once               |
-| `npm run test:watch`    | Watch mode                            |
-| `npm run test:coverage` | Coverage over the pure domain logic   |
-| `npm run lint`          | ESLint                                |
-| `npm run typecheck`     | `tsc --noEmit`                        |
-| `npm run format`        | Prettier write                        |
-| `npm run format:check`  | Prettier check (this is what CI runs) |
+| Command                 | What it does                           |
+| ----------------------- | -------------------------------------- |
+| `npm run dev`           | Development server                     |
+| `npm run build`         | Production build                       |
+| `npm run start`         | Serve the production build             |
+| `npm run test`          | Run the test suite once                |
+| `npm run test:watch`    | Watch mode                             |
+| `npm run test:coverage` | Coverage over the pure domain logic    |
+| `npm run test:e2e`      | Playwright browser tests + screenshots |
+| `npm run test:e2e:ui`   | Playwright in interactive UI mode      |
+| `npm run lint`          | ESLint                                 |
+| `npm run typecheck`     | `tsc --noEmit`                         |
+| `npm run format`        | Prettier write                         |
+| `npm run format:check`  | Prettier check (this is what CI runs)  |
 
 ## Environment variables
 
@@ -139,6 +185,7 @@ annotated list.
 | `POOL_SCAN_CHUNK_SIZE`  | Blocks per `eth_getLogs` call                 | `9000`                                |
 | `POOL_SCAN_MAX_CHUNKS`  | Maximum `eth_getLogs` calls per scan          | `12`                                  |
 | `POOL_SCAN_MAX_RESULTS` | Stop after this many pools                    | `100`                                 |
+| `NEXT_PUBLIC_SITE_URL`  | Absolute origin, for Open Graph image URLs    | auto-detected on Vercel               |
 
 Two notes:
 
