@@ -270,4 +270,6 @@ _could_ do. The tool's job is to make the powers visible, not to render a verdic
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
+
+Contributions welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).

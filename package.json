@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "description": "Decode and inspect Uniswap v4 hook contracts from their address.",
+  "license": "MIT",
+  "author": "Pranay Gaurav",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pranay123-stack/hook-explorer"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
